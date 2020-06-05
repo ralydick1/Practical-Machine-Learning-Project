@@ -600,7 +600,7 @@ plot(confGBM$table, col = confGBM$byClass, main=paste(&quot;Random Forest - Accu
 <li>Random Forest: 0.999</li>
 <li>GBM: 0.9871</li>
 </ol>
-<p>As you can see, Random Foresting had the highest reported accuracy. As such, it will be used on the test data set for the upcoming quiz with the following command.</p>
+<p>As you can see, Random Foresting had the highest reported accuracy. It's out of sample error is be the absolute lowest at 0.001. Compared to GBM's 0.0129 and the Decision Tree's 0.2658. As such, it will be used on the test data set for the upcoming quiz with the following command.</p>
 <pre class="r"><code>quiz &lt;- predict(modForest, newdata=testing)
 quiz</code></pre>
 <pre><code>##  [1] B A B A A E D B A A B C B A E E A B B B
