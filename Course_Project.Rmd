@@ -1,0 +1,146 @@
+---
+title: "Practical Machine Learning Project"
+author: "Alex Lydick"
+date: "6/5/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1.0 - Overview
+
+This is a project for the Johns Hopkins Coursera course on Practical Machine learning. A description for the project is quoted below:
+
+>Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. 
+
+Using the provided Datasets, this project aims to predict how the particpants performed their excercise. This is a variable in the training dataset known the "classe". Details on the methodology will be included throughout the report and my model will later be used to make a prediction for 20 different cases via a course quiz.
+
+## 2.0 - Data Processing
+```{r, message=FALSE, warning=FALSE}
+# Environment Set-up
+library(knitr)
+library(caret)
+library(rpart)
+library(gbm)
+library(rpart.plot)
+library(rattle)
+library(randomForest)
+library(corrplot)
+set.seed(12345)
+# set.wd("./Coursera/Machine_learning")
+
+# Data loading
+training <- read.csv("./pml-training.csv",header=T)
+testing <- read.csv("./pml-testing.csv",header=T)
+
+# Create partition of the Training set
+parTrain  <- createDataPartition(training$classe, p=0.7, list=FALSE)
+train_set <- training[parTrain, ]
+test_set  <- training[-parTrain, ]
+dim(train_set)
+dim(test_set)
+```
+As we can see, we have 19,622 total entries with 160 variables in the Training set. A good deal of these are NA's. Those and Near Zero Values, will be removed first. All cleaning processes will be mirrored on the testing dataset that will be used for the prediction quiz.
+```{r}
+# Remove NA's
+train_set <- train_set[, colSums(is.na(train_set)) == 0]
+test_set <- test_set[, colSums(is.na(test_set)) == 0]
+
+# Near Zero Variables Removal
+NZV <- nearZeroVar(train_set)
+train_set <- train_set[, -NZV]
+test_set <- test_set[, -NZV]
+dim(train_set)
+dim(test_set)
+```
+The first five columns also need to be removed as they only contain identifacation information like user_name, timestamps, etc.
+```{r}
+# Remove ID columns
+train_set <- train_set[,-(1:5)]
+test_set <- test_set[,-(1:5)]
+dim(train_set)
+dim(test_set)
+```
+We're now down to 54 variables--much more managable. We can now move onto Analysis.
+
+## 3.0 - Analysis
+The first step of analysis will be looking at a correlation plot.
+```{r}
+# Plot generation
+corrMat <- cor(train_set[, -54])
+corrplot(corrMat, order = "FPC", method = "color", type = "lower", tl.cex = 0.8, tl.col = rgb(0,0,0))
+```
+
+The variables that are highly correlated are shown in darker colors. 
+
+### 3.1 - Model building
+Moving on, we'll explore three different prediction models with the training set. The method with the highest accuracy will be applied to the testing set for the quiz. These methods will be: Decision Tree, Random Forests, and Generalized Booseted Modeling. A confusion matrix will be ploted after each method for a direct comparison of each method's accuracy. 
+### 3.2 - Method 1: Decision Tree
+```{r}
+# Model generation
+set.seed(12345)
+DecTree <- rpart(classe ~., data=train_set,method="class")
+fancyRpartPlot(DecTree)
+```
+```{r}
+# Prediction with Test Set
+predTree <- predict(DecTree,newdata=test_set,type="class")
+confTree <- confusionMatrix(predTree, test_set$classe)
+confTree
+```
+```{r}
+# Plot Results
+plot(confTree$table, col = confTree$byClass, main=paste("Decision Tree - Accuracy =", round(confTree$overall["Accuracy"],4)))
+```
+### 3.3 - Method 2: Random Forest
+```{r}
+# model generation
+set.seed(12345)
+controlForest <- trainControl(method="cv", number=3, verboseIter=FALSE)
+modForest <- train(classe ~., data=train_set, method="rf", trControl=controlForest)
+modForest$finalModel
+```
+```{r}
+# prediction
+predictForest <- predict(modForest, newdata = test_set)
+confForest <- confusionMatrix(predictForest,test_set$classe)
+confForest
+```
+```{r}
+# Confusion Matrix plot
+plot(confForest$table, col = confForest$byClass, main=paste("Random Forest - Accuracy =", round(confForest$overall["Accuracy"],4)))
+```
+
+### 3.4 - Method 3: Generalized Boosted Model
+```{r}
+# Model Generation
+set.seed(12345)
+controlGBM <- trainControl(method="repeatedcv",number = 5,  repeats=1)
+modGBM <- train(classe ~ ., data=train_set,method="gbm",trControl = controlGBM, verbose=FALSE)
+modGBM$finalModel
+```
+```{r}
+# prediction with test set
+predcitGBM <- predict(modGBM, newdata=test_set)
+confGBM <- confusionMatrix(predcitGBM, test_set$classe)
+confGBM
+```
+```{r}
+# Confusion Matrix plot
+plot(confGBM$table, col = confGBM$byClass, main=paste("Random Forest - Accuracy =", round(confGBM$overall["Accuracy"],4)))
+```
+
+## 4.0 - Model Selection
+The accuracy of the three prediction methods are listed below:
+
+1. Decision Tree: `r round(confTree$overall["Accuracy"],4)`
+2. Random Forest: `r round(confForest$overall["Accuracy"],4)`
+3. GBM: `r round(confGBM$overall["Accuracy"],4)`
+
+As you can see, Random Foresting had the highest reported accuracy. As such, it will be used on the test data set for the upcoming quiz with the following command.
+```{r}
+quiz <- predict(modForest, newdata=testing)
+quiz
+```
