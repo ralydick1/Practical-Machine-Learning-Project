@@ -139,7 +139,9 @@ The accuracy of the three prediction methods are listed below:
 2. Random Forest: `r round(confForest$overall["Accuracy"],4)`
 3. GBM: `r round(confGBM$overall["Accuracy"],4)`
 
-As you can see, Random Foresting had the highest reported accuracy. As such, it will be used on the test data set for the upcoming quiz with the following command.
+As you can see, Random Foresting had the highest reported accuracy. It's out of sample error is be the absolute lowest at 0.001. Compared to GBM's 0.0129 and the Decision Tree's 0.2658.
+
+As such, it will be used on the test data set for the upcoming quiz with the following command.
 ```{r}
 quiz <- predict(modForest, newdata=testing)
 quiz
